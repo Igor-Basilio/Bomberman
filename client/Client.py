@@ -15,7 +15,7 @@ from Spritesheet import *
 # Heartbeat to disconnect players
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('192.168.0.212', 5000))
+sock.connect(('localhost', 5000))
 
 rect_position_lock = Lock()
 players_lock = Lock()
@@ -200,6 +200,8 @@ def quit():
 
 def playerJoined():
     global playerCar
+
+    # Endianess, int 4 bytes ( little endian, big endian )
     data = b'PLAYER JOINED' + struct.pack('>3B2H2iH', *color, 20, 30,
                                       playerCar.rect.x, playerCar.rect.y, ID)
 
@@ -218,6 +220,11 @@ def drawGrass():
     background = background.convert()
     return background
 
+def drawWalls():
+    pass
+
+def drawBoxes():
+    pass
 
 if __name__ == "__main__":
 
@@ -247,7 +254,9 @@ if __name__ == "__main__":
             #player_updated_event.wait(timeout=0.1)
             #player_updated_event.clear()
 
+
         DISPLAY.blit(background, (0, 0))
+
         with rect_position_lock:
             pygame.draw.rect(DISPLAY, state_color,
                              (*rect_position, 50, 50))
@@ -256,6 +265,7 @@ if __name__ == "__main__":
             playerCar.move()
             for p in playerDict.values():
                 DISPLAY.blit(p.image, p.rect)
+
 
         pygame.display.update()
 

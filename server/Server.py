@@ -198,6 +198,7 @@ class RequestHandler(socketserver.BaseRequestHandler):
                 recv_buffer += data
 
                 while len(recv_buffer) >= 4:
+                    # I = 4 bytes sem sinal (unsigned int)
                     msg_len = struct.unpack('>I', recv_buffer[:4])[0]
                     if len(recv_buffer) < 4 + msg_len:
                         break
@@ -231,7 +232,7 @@ class RequestHandler(socketserver.BaseRequestHandler):
                         except:
                             pass
 
-server = socketserver.ThreadingTCPServer(('192.168.0.212', 5000), RequestHandler)
+server = socketserver.ThreadingTCPServer(('localhost', 5000), RequestHandler)
 server.daemon_threads = True
 server.allow_reuse_address = True
 server.serve_forever()

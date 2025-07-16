@@ -157,6 +157,15 @@ def parseProtocolMSG(self, msg):
                                        + packedData)
                     except:
                         pass
+    elif msg.startswith(b'BOMB PLACED'):
+        lenMsg = struct.pack('>I', len(msg))
+        with clients_lock:
+            for client in clients:
+                if client != self.request:
+                    try:
+                        client.sendall(lenMsg + msg)
+                    except:
+                        pass
 
     elif msg.strip() == b'STATE':
         self.request.send(struct.pack('>I', len(bytes(state))) 

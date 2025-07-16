@@ -11,6 +11,7 @@ import numpy as np
 
 from Setup import *
 from Spritesheet import *
+from Bomb import *
 
 # Heartbeat to disconnect players
 
@@ -122,6 +123,11 @@ def parseProtocolMSG(msg):
         nmClients = struct.unpack('>I', msg[20:])[0]
         print(f'Too many clients on the server : {nmClients}')
 
+    elif msg.startswith(b'BOMB PLACED'):
+        posX, posY, time = struct.unpack('>2iI', msg[11:])
+        bomb = Bomb(posX, posY, time)
+        bomb.animate()
+
 def recv_updates():
     recv_buffer = b""
 
@@ -226,6 +232,10 @@ def drawWalls():
 def drawBoxes():
     pass
 
+def sendBombPlaced(posX, posY, time):
+    packed = b'BOMB PLACED' + struct.pack('>2iI', posX, posY, time) 
+    sock.sendall(struct.pack('>I', len(packed)) + packed)
+
 if __name__ == "__main__":
 
     #checkNumClients()
@@ -235,13 +245,20 @@ if __name__ == "__main__":
     playerJoined()
 
     while True:
-        clock.tick(60)
+        clock.tick(FPS)
 
         for event in pygame.event.get():
             if event.type == QUIT:
                 quit()
             elif event.type == pygame.MOUSEBUTTONUP:
                 updateState2()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    time = 1
+                    bomb = Bomb(playerCar.rect.x, playerCar.rect.y, time)
+                    bomb.animate()
+                    sendBombPlaced(playerCar.rect.x, playerCar.rect.y, time)
+
 
         #DISPLAY.blit(sidewaysBrickWall, (0, 0))
         #DISPLAY.blit(goblin1FrameArray[1], (TILESIZE * SCALE_FACTOR, 0))
@@ -256,6 +273,12 @@ if __name__ == "__main__":
 
 
         DISPLAY.blit(background, (0, 0))
+
+        bombsGroup.draw(DISPLAY)
+        bombsGroup.update()
+
+        explosionGroup.draw(DISPLAY)
+        explosionGroup.update()
 
         with rect_position_lock:
             pygame.draw.rect(DISPLAY, state_color,

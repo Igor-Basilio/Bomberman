@@ -137,7 +137,7 @@ def recv_updates():
             data = sock.recv(2048)
 
             if not data:
-                continue
+               break
 
             recv_buffer += data
 
@@ -224,7 +224,7 @@ def sendBombPlaced(posX, posY, time):
 
 if __name__ == "__main__":
 
-    #checkNumClients()
+    checkNumClients()
     background = drawGrass()
     recv_thread = threading.Thread(target=recv_updates, daemon=True)
     recv_thread.start()
@@ -240,16 +240,24 @@ if __name__ == "__main__":
                 updateState2()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    time = 2
-                    bomb = Bomb(Player.playerCar.rect.x,
-                                Player.playerCar.rect.y, time)
 
-                    Physics.justPlacedBomb = True
-                    Physics.lastPlacedBomb = bomb
+                    if Physics.lastPlacedBomb is not None:
+                        collidingWithLastPlacedBomb = Player.playerCar \
+                            .rect.colliderect(Physics.lastPlacedBomb.rect)
 
-                    bomb.animate()
-                    sendBombPlaced(Player.playerCar.rect.x,
-                                   Player.playerCar.rect.y, time)
+                    if Physics.lastPlacedBomb is None or \
+                       collidingWithLastPlacedBomb is None:
+
+                        time = 2
+                        bomb = Bomb(Player.playerCar.rect.x,
+                                    Player.playerCar.rect.y, time)
+
+                        Physics.justPlacedBomb = True
+                        Physics.lastPlacedBomb = bomb
+
+                        bomb.animate()
+                        sendBombPlaced(Player.playerCar.rect.x,
+                                       Player.playerCar.rect.y, time)
 
         #DISPLAY.blit(sidewaysBrickWall, (0, 0))
         #DISPLAY.blit(goblin1FrameArray[1], (TILESIZE * SCALE_FACTOR, 0))

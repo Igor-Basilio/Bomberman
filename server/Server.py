@@ -182,11 +182,11 @@ class RequestHandler(socketserver.BaseRequestHandler):
         print(self.client_address, 'connected!')
         #self.request.send(('hi ' + str(self.client_address) + '\n').encode('utf-8'))
 
-        #if len(clients) >= 2:
-        #    self.request.send(b'NO')
-        #    return
-        #else:
-        #    self.request.send(b'OK')
+        if len(clients) >= 2:
+            self.request.send(b'NO')
+            return
+        else:
+            self.request.send(b'OK')
         
         with clients_lock:
             clients.append(self.request)
@@ -203,7 +203,7 @@ class RequestHandler(socketserver.BaseRequestHandler):
                 data = self.request.recv(2048)
 
                 if not data:
-                   continue
+                   break
 
                 recv_buffer += data
 

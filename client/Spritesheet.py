@@ -14,13 +14,18 @@ def getImage(sheet, width, height, scale, color, frame, pos):
 TILESIZE = 16
 GOBLIN_1INDEX = 14
 
-TILES_SCALE_FACTOR = 4
+TILES_SCALE_FACTOR = 3
 GOBLIN_SCALE_FACTOR = 3
 BOMB_SCALE_FACTOR = 2.5
 
 sidewaysBrickWall = getImage(sprite_sheet_image, TILESIZE, TILESIZE,
                              TILES_SCALE_FACTOR,
                              BLACK, 0, (0, 0)).convert()
+
+topBrickWall = getImage(sprite_sheet_image, TILESIZE, TILESIZE,
+                             TILES_SCALE_FACTOR,
+                             BLACK, 0, (TILESIZE, 0)).convert()
+
 
 goblin1FrameArray = [getImage(sprite_sheet_image, TILESIZE, TILESIZE,
                               GOBLIN_SCALE_FACTOR,
@@ -34,6 +39,7 @@ EndFlameRightPosition = (3 * TILESIZE, 18 * TILESIZE)
 FourWayFlamePosition = (2 * TILESIZE, 18 * TILESIZE)
 BottomFlamePosition = (14 * TILESIZE, 15 * TILESIZE)
 TopFlamePosition = (14 * TILESIZE, 13 * TILESIZE)
+WoodBoxPosition = (9 * TILESIZE, 13 * TILESIZE)
 
 grassTile = getImage(sprite_sheet_image, TILESIZE, TILESIZE,
                      TILES_SCALE_FACTOR,
@@ -68,4 +74,9 @@ BottomFlame = getImage(sprite_sheet_image, TILESIZE, TILESIZE,
 TopFlame = getImage(sprite_sheet_image, TILESIZE, TILESIZE,
                     BOMB_SCALE_FACTOR, BLACK,
                     0, TopFlamePosition).convert()
+
+WoodBox = getImage(sprite_sheet_image, TILESIZE, TILESIZE,
+                    BOMB_SCALE_FACTOR, BLACK,
+                    0, WoodBoxPosition).convert()
+
 

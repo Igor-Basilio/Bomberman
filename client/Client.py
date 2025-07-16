@@ -2,6 +2,7 @@
 import socket
 import pygame
 from pygame.locals import *
+import math
 import sys
 import time
 import struct
@@ -12,14 +13,14 @@ import numpy as np
 from Setup import *
 from Spritesheet import *
 from Bomb import *
+import Physics
+from Globals import *
+import Player
 
 # Heartbeat to disconnect players
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect(('localhost', 5000))
-
-rect_position_lock = Lock()
-players_lock = Lock()
 
 def checkNumClients():
     connStr = sock.recv(2)
@@ -78,7 +79,7 @@ def parseProtocolMSG(msg):
                                                     unpack('>3B2H2iH',
                                                     msg[14:]))
 
-       player = Sprite((R, G, B), height, width)
+       player = Player.Sprite((R, G, B), height, width)
        player.rect.x = x
        player.rect.y = y
 
@@ -88,7 +89,7 @@ def parseProtocolMSG(msg):
             
     elif msg.startswith(b'PLAYER JOINED'):
 
-        global ID, playerCar
+        global ID
 
         playersConnected = struct.unpack('>H', msg[13:15])[0]
 
@@ -99,7 +100,7 @@ def parseProtocolMSG(msg):
                                              unpack_from('>3B2H2iH',
                                                      msg[15:], i * 17))
 
-            player = Sprite((R, G, B), height, width)
+            player = Player.Sprite((R, G, B), height, width)
             player.rect.x = x
             player.rect.y = y
 
@@ -109,7 +110,7 @@ def parseProtocolMSG(msg):
                     playerDict[incomingID] = player
 
                     if ID == incomingID:
-                        playerCar = player
+                        Player.playerCar = player
 
                     player_joined_event.set()
 
@@ -156,47 +157,6 @@ def recv_updates():
 SURFACE_COLOR = (99, 99, 99)
 COLOR = (255, 100, 98)
 
-
-class Sprite(pygame.sprite.Sprite):
-    def __init__(self, color, height, width):
-        super().__init__()
-
-        self.color = color
-        self.image = goblin1FrameArray[1]
-        self.rect = self.image.get_rect()
-
-    def move(self):
-        keys = pygame.key.get_pressed()
-
-        if keys[pygame.K_LEFT]:
-            playerCar.moveLeft(10)
-        if keys[pygame.K_RIGHT]:
-            playerCar.moveRight(10)
-        if keys[pygame.K_DOWN]:
-            playerCar.moveForward(10)
-        if keys[pygame.K_UP]:
-            playerCar.moveBack(10)
-
-    def moveRight(self, pixels):
-        self.rect.x += pixels
-
-    def moveLeft(self, pixels):
-        self.rect.x -= pixels
-
-    def moveForward(self, speed):
-        self.rect.y += int(speed * speed/10)
-
-    def moveBack(self, speed):
-        self.rect.y -= int(speed * speed/10)
-
-
-clock = pygame.time.Clock()
-color = list(np.random.choice(range(256), size=3))
-playerCar = Sprite(color, 20, 30)
-playerCar.rect.x = np.random.choice(range(800 - 30))
-playerCar.rect.y = np.random.choice(range(600 - 20))
-
-
 def quit():
     global recv_thread
     pygame.quit()
@@ -205,32 +165,58 @@ def quit():
     sys.exit()
 
 def playerJoined():
-    global playerCar
 
     # Endianess, int 4 bytes ( little endian, big endian )
-    data = b'PLAYER JOINED' + struct.pack('>3B2H2iH', *color, 20, 30,
-                                      playerCar.rect.x, playerCar.rect.y, ID)
+    data = b'PLAYER JOINED' + struct.pack('>3B2H2iH', *Player.color, 20, 30,
+                                      Player.playerCar.rect.x,
+                                      Player.playerCar.rect.y, ID)
 
     sock.sendall(struct.pack('>I', len(data)) + data)
     player_joined_event.wait(timeout=0.1)
     player_joined_event.clear()
 
+def drawBoundingWalls(background):
+    Physics.Walls.append(background.blit(sidewaysBrickWall, (0, 0)))
+    
+    # for i in range is non inclusive thats why
+    # SCREEN_WIDTH - TILESIZE * TILES_SCALE_FACTOR
+    # is not drawn as a topBrickWall
+    for i in range(TILESIZE * TILES_SCALE_FACTOR, SCREEN_WIDTH -
+                   TILESIZE * TILES_SCALE_FACTOR, TILESIZE * TILES_SCALE_FACTOR):
+        Physics.Walls.append(background.blit(topBrickWall, (i, 0)))
+
+    Physics.Walls.append(background.blit(sidewaysBrickWall,
+                    (SCREEN_WIDTH - TILESIZE * TILES_SCALE_FACTOR, 0)))
+
+    for i in range(TILESIZE * TILES_SCALE_FACTOR, SCREEN_HEIGHT,
+                   TILESIZE * TILES_SCALE_FACTOR):
+        Physics.Walls.append(background.blit(sidewaysBrickWall, (0, i)))
+
+    for i in range(TILESIZE * TILES_SCALE_FACTOR, SCREEN_HEIGHT,
+                   TILESIZE * TILES_SCALE_FACTOR):
+        Physics.Walls.append(background.blit(sidewaysBrickWall, 
+                        (SCREEN_WIDTH - TILESIZE * TILES_SCALE_FACTOR, i)))
+
+    for i in range(0, SCREEN_WIDTH,
+                   TILESIZE * TILES_SCALE_FACTOR):
+        Physics.Walls.append(background.blit(topBrickWall, 
+                        (i,SCREEN_HEIGHT - TILESIZE * TILES_SCALE_FACTOR)))
+
+def drawBoxes(background):
+    Physics.Boxes.append(background.blit(WoodBox,
+                                         (5 * TILESIZE * TILES_SCALE_FACTOR,
+                                         5 * TILESIZE * TILES_SCALE_FACTOR))) 
 
 def drawGrass():
-    background = pygame.Surface((720, 576))
-    for i in range(0, 576, TILESIZE):
-        for j in range(0, 720, TILESIZE):
+    background = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    for i in range(0, SCREEN_HEIGHT, TILESIZE * TILES_SCALE_FACTOR):
+        for j in range(0, SCREEN_WIDTH, TILESIZE * TILES_SCALE_FACTOR):
             background.blit(grassTile, (j, i))
 
-    
+    drawBoundingWalls(background)
+    drawBoxes(background)
     background = background.convert()
     return background
-
-def drawWalls():
-    pass
-
-def drawBoxes():
-    pass
 
 def sendBombPlaced(posX, posY, time):
     packed = b'BOMB PLACED' + struct.pack('>2iI', posX, posY, time) 
@@ -245,7 +231,7 @@ if __name__ == "__main__":
     playerJoined()
 
     while True:
-        clock.tick(FPS)
+        Player.clock.tick(FPS)
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -254,18 +240,23 @@ if __name__ == "__main__":
                 updateState2()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    time = 1
-                    bomb = Bomb(playerCar.rect.x, playerCar.rect.y, time)
-                    bomb.animate()
-                    sendBombPlaced(playerCar.rect.x, playerCar.rect.y, time)
+                    time = 2
+                    bomb = Bomb(Player.playerCar.rect.x,
+                                Player.playerCar.rect.y, time)
 
+                    Physics.justPlacedBomb = True
+                    Physics.lastPlacedBomb = bomb
+
+                    bomb.animate()
+                    sendBombPlaced(Player.playerCar.rect.x,
+                                   Player.playerCar.rect.y, time)
 
         #DISPLAY.blit(sidewaysBrickWall, (0, 0))
         #DISPLAY.blit(goblin1FrameArray[1], (TILESIZE * SCALE_FACTOR, 0))
         
         with players_lock:
-            data = b'CHANGEPOS' + struct.pack('>H2i',  ID, playerCar.rect.x,
-                                            playerCar.rect.y)
+            data = b'CHANGEPOS' + struct.pack('>H2i',  ID, Player.playerCar.rect.x,
+                                            Player.playerCar.rect.y)
 
             sock.sendall(struct.pack('>I', len(data)) + data)
             #player_updated_event.wait(timeout=0.1)
@@ -273,22 +264,34 @@ if __name__ == "__main__":
 
 
         DISPLAY.blit(background, (0, 0))
-
         bombsGroup.draw(DISPLAY)
         bombsGroup.update()
 
         explosionGroup.draw(DISPLAY)
         explosionGroup.update()
+        
 
         with rect_position_lock:
             pygame.draw.rect(DISPLAY, state_color,
                              (*rect_position, 50, 50))
 
+        collided = pygame.sprite.spritecollideany(Player.playerCar, bombsGroup,
+                                                  collided=None)
+
+        indexofCollidedWall = Player.playerCar.rect.collidelist(Physics.Walls)
+        indexofCollidedBox  = Player.playerCar.rect.collidelist(Physics.Boxes)
+
+        if collided is None and indexofCollidedWall == -1 and indexofCollidedBox == -1:
+            Physics.oldPos = Player.playerCar.rect.copy()
+            Physics.justPlacedBomb = False
+            Physics.lastPlacedBomb = None
+
         with players_lock:
-            playerCar.move()
+            Player.playerCar.move()
             for p in playerDict.values():
                 DISPLAY.blit(p.image, p.rect)
 
+        Physics.collisionDetection(Physics.oldPos)
 
         pygame.display.update()
 

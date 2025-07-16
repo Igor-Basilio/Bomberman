@@ -45,19 +45,20 @@ def parseProtocolMSG(self, msg):
         self._height = height
         self._width = width
 
-        pos = (0, 0)
-        match len(clients):
-            case 1:
-                pos = (8, 8)
-            case 2:
-                pos = (8, 525)
-            case 3:
-                pos = (665, 8)
-            case 4:
-                pos = (665, 525)
-            case _:
-                pos = (x, y)
+        #pos = (0, 0)
+        #match len(clients):
+        #    case 1:
+        #        pos = (8, 8)
+        #    case 2:
+        #        pos = (8, 525)
+        #    case 3:
+        #        pos = (665, 8)
+        #    case 4:
+        #        pos = (665, 525)
+        #    case _:
+        #        pos = (x, y)
 
+        pos = (100, 100)
         self._pos = pos
         self._ID = ID
 

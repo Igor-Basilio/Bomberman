@@ -12,10 +12,11 @@ import numpy as np
 
 from Setup import *
 from Spritesheet import *
-from Bomb import *
 import Physics
 from Globals import *
+import Globals
 import Player
+from Bomb import *
 
 # Heartbeat to disconnect players
 
@@ -203,11 +204,17 @@ def drawBoundingWalls(background):
                         (i,SCREEN_HEIGHT - TILESIZE * TILES_SCALE_FACTOR)))
 
 def drawBoxes(background):
-    Physics.Boxes.append(background.blit(WoodBox,
-                                         (5 * TILESIZE * TILES_SCALE_FACTOR,
-                                         5 * TILESIZE * TILES_SCALE_FACTOR))) 
+    box_rect = pygame.Rect(5 * TILESIZE * TILES_SCALE_FACTOR,
+                       5 * TILESIZE * TILES_SCALE_FACTOR,
+                       TILESIZE * TILES_SCALE_FACTOR, TILESIZE * TILES_SCALE_FACTOR)
 
-def drawGrass():
+    background_subsurface = background.subsurface(box_rect).copy()
+    background.blit(WoodBox, box_rect)
+
+    Physics.BoxesRects.append(box_rect.copy())
+    Physics.BoxesSurfaces.append((background_subsurface, box_rect.copy()))
+
+def drawBackground():
     background = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     for i in range(0, SCREEN_HEIGHT, TILESIZE * TILES_SCALE_FACTOR):
         for j in range(0, SCREEN_WIDTH, TILESIZE * TILES_SCALE_FACTOR):
@@ -223,13 +230,13 @@ def sendBombPlaced(posX, posY, time):
     sock.sendall(struct.pack('>I', len(packed)) + packed)
 
 if __name__ == "__main__":
-
+    
     checkNumClients()
-    background = drawGrass()
+    Globals.background = drawBackground()
     recv_thread = threading.Thread(target=recv_updates, daemon=True)
     recv_thread.start()
     playerJoined()
-
+    
     while True:
         Player.clock.tick(FPS)
 
@@ -245,8 +252,9 @@ if __name__ == "__main__":
                         collidingWithLastPlacedBomb = Player.playerCar \
                             .rect.colliderect(Physics.lastPlacedBomb.rect)
 
-                    if Physics.lastPlacedBomb is None or \
-                       collidingWithLastPlacedBomb is None:
+                    if (Physics.lastPlacedBomb is None or \
+                       collidingWithLastPlacedBomb is None) and \
+                       Globals.numberOfPlacedBombs < 2:
 
                         time = 2
                         bomb = Bomb(Player.playerCar.rect.x,
@@ -271,7 +279,7 @@ if __name__ == "__main__":
             #player_updated_event.clear()
 
 
-        DISPLAY.blit(background, (0, 0))
+        DISPLAY.blit(Globals.background, (0, 0))
         bombsGroup.draw(DISPLAY)
         bombsGroup.update()
 
@@ -287,7 +295,7 @@ if __name__ == "__main__":
                                                   collided=None)
 
         indexofCollidedWall = Player.playerCar.rect.collidelist(Physics.Walls)
-        indexofCollidedBox  = Player.playerCar.rect.collidelist(Physics.Boxes)
+        indexofCollidedBox  = Player.playerCar.rect.collidelist(Physics.BoxesRects)
 
         if collided is None and indexofCollidedWall == -1 and indexofCollidedBox == -1:
             Physics.oldPos = Player.playerCar.rect.copy()

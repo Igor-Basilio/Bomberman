@@ -10,7 +10,7 @@ def collisionDetection(oldPos):
                                              collided=None)
 
       collidedWallIndex = Player.playerCar.rect.collidelist(Walls)
-      collidedBoxIndex = Player.playerCar.rect.collidelist(Boxes) 
+      collidedBoxIndex = Player.playerCar.rect.collidelist(BoxesRects) 
 
    #if collidedBombSprite and not justPlacedBomb:
    #    with players_lock:
@@ -33,7 +33,8 @@ def collisionDetection(oldPos):
 
 oldPos = 0
 Walls = []
-Boxes = []
+BoxesRects = []
+BoxesSurfaces = []
 justPlacedBomb = False
 lastPlacedBomb = None
 

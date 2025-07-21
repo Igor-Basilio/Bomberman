@@ -9,10 +9,10 @@ class Sprite(pygame.sprite.Sprite):
 
         self.color = color
         self.image = goblin1FrameArray[1]
-        self.rect = self.image.get_rect() 
+        self.rect = self.image.get_rect()
 
-        self.rect.width  -= TILESIZE / 4
-        self.rect.height -= TILESIZE / 4
+        self.rect.width  -= TILESIZE
+        self.rect.height -= TILESIZE
 
     def move(self):
         keys = pygame.key.get_pressed()

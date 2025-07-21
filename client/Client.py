@@ -25,15 +25,11 @@ sock.connect(('localhost', 5000))
 
 def checkNumClients():
     connStr = sock.recv(2)
-    print(connStr)
-    if connStr == 'NO':
-        print('TOO MANY CONNECTIONS')
+    if connStr.decode() == 'NO':
+        print('Limite de jogadores alcançado (4).')
         sock.close()
         pygame.quit()
         exit()
-    else:
-        print('OK')
-
 
 player_joined_event = Event()
 player_updated_event = Event()
@@ -229,6 +225,11 @@ def drawBackground():
     drawBoundingWalls(background)
     drawInsideWalls(background)
     drawBoxes(background, 3, 4)
+    drawBoxes(background, 1, 3)
+    drawBoxes(background, 2, 3)
+    drawBoxes(background, 3, 3)
+    drawBoxes(background, 3, 2)
+    drawBoxes(background, 3, 1)
     drawBoxes(background, 5, 6)
     background = background.convert()
     return background
@@ -244,6 +245,7 @@ if __name__ == "__main__":
     recv_thread = threading.Thread(target=recv_updates, daemon=True)
     recv_thread.start()
     playerJoined()
+    debug = False
     
     while True:
         Player.clock.tick(FPS)
@@ -274,6 +276,8 @@ if __name__ == "__main__":
                         bomb.animate()
                         sendBombPlaced(Player.playerCar.rect.x,
                                        Player.playerCar.rect.y, time)
+                if event.key == pygame.K_p:
+                    debug = not debug
 
         #DISPLAY.blit(sidewaysBrickWall, (0, 0))
         #DISPLAY.blit(goblin1FrameArray[1], (TILESIZE * SCALE_FACTOR, 0))
@@ -295,9 +299,9 @@ if __name__ == "__main__":
         explosionGroup.update()
         
 
-        with rect_position_lock:
-            pygame.draw.rect(DISPLAY, state_color,
-                             (*rect_position, 50, 50))
+        #with rect_position_lock:
+        #    pygame.draw.rect(DISPLAY, state_color,
+        #                     (*rect_position, 50, 50))
 
         collided = pygame.sprite.spritecollideany(Player.playerCar, bombsGroup,
                                                   collided=None)
@@ -313,7 +317,14 @@ if __name__ == "__main__":
         with players_lock:
             Player.playerCar.move()
             for p in playerDict.values():
-                DISPLAY.blit(p.image, p.rect)
+                DISPLAY.blit(p.image, (p.rect.x - TILESIZE / 2,
+                                       p.rect.y - TILESIZE))
+
+                if debug:
+                    pygame.draw.rect(DISPLAY, (0, 255, 0),
+                                     (p.rect.x,
+                                      p.rect.y, p.rect.width,
+                                      p.rect.height), 3)
 
         Physics.collisionDetection(Physics.oldPos)
 

@@ -76,7 +76,7 @@ TopFlame = getImage(sprite_sheet_image, TILESIZE, TILESIZE,
                     0, TopFlamePosition).convert()
 
 WoodBox = getImage(sprite_sheet_image, TILESIZE, TILESIZE,
-                    BOMB_SCALE_FACTOR, BLACK,
+                    TILES_SCALE_FACTOR, BLACK,
                     0, WoodBoxPosition).convert()
 
 

@@ -201,7 +201,7 @@ class BombExplosion(pygame.sprite.Sprite):
                          (TILESIZE, 2 * TILESIZE), (BottomFlamePosition[0],
                                                     BottomFlamePosition[1],
                                                     TILESIZE,
-                                                    TILESIZE / 3))
+                                                    0))
             
 
         surface = pygame.transform.scale(surface, (3 * TILESIZE * TILES_SCALE_FACTOR,

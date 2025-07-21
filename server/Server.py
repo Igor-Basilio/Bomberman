@@ -45,20 +45,20 @@ def parseProtocolMSG(self, msg):
         self._height = height
         self._width = width
 
-        #pos = (0, 0)
-        #match len(clients):
-        #    case 1:
-        #        pos = (8, 8)
-        #    case 2:
-        #        pos = (8, 525)
-        #    case 3:
-        #        pos = (665, 8)
-        #    case 4:
-        #        pos = (665, 525)
-        #    case _:
-        #        pos = (x, y)
+        pos = (0, 0)
+        match len(clients):
+            case 1:
+                pos = (50, 50)
+            case 2:
+                pos = (535, 50)
+            case 3:
+                pos = (50, 535)
+            case 4:
+                pos = (535, 535)
+            case _:
+                self.request.close()
+                return
 
-        pos = (50, 50)
         self._pos = pos
         self._ID = ID
 
@@ -176,15 +176,16 @@ def parseProtocolMSG(self, msg):
         msg = struct.pack('>HH', *state2)
         self.request.send(struct.pack('>I', len(msg)) + msg)
 
+MAX_NUM_CLIENTS = 4
+
 class RequestHandler(socketserver.BaseRequestHandler):
 
     def setup(self):
         print(self.client_address, 'connected!')
         #self.request.send(('hi ' + str(self.client_address) + '\n').encode('utf-8'))
 
-        if len(clients) >= 2:
+        if len(clients) >= MAX_NUM_CLIENTS:
             self.request.send(b'NO')
-            return
         else:
             self.request.send(b'OK')
         
@@ -194,9 +195,6 @@ class RequestHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         global state2, recv_buffer
-
-        #if len(clients) >= 2:
-        #    return
 
         while True:
             try:

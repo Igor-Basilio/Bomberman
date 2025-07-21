@@ -205,7 +205,7 @@ def drawBoundingWalls(background):
 
 def drawInsideWalls(background):
     for i in range(2*TILESIZE * TILES_SCALE_FACTOR, SCREEN_WIDTH - 2*TILESIZE * TILES_SCALE_FACTOR, 2*TILESIZE * TILES_SCALE_FACTOR):
-        for j in range(3*TILESIZE * TILES_SCALE_FACTOR, SCREEN_HEIGHT- 2*TILESIZE * TILES_SCALE_FACTOR, 2*TILESIZE * TILES_SCALE_FACTOR):
+        for j in range(2*TILESIZE * TILES_SCALE_FACTOR, SCREEN_HEIGHT- 2*TILESIZE * TILES_SCALE_FACTOR, 2*TILESIZE * TILES_SCALE_FACTOR):
             Physics.Walls.append(background.blit(topBrickWall, (i, j)))
 
 # def drawBoxes(background,):

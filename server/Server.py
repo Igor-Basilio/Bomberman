@@ -58,7 +58,7 @@ def parseProtocolMSG(self, msg):
         #    case _:
         #        pos = (x, y)
 
-        pos = (100, 100)
+        pos = (50, 50)
         self._pos = pos
         self._ID = ID
 

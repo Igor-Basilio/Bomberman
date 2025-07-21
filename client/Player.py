@@ -17,20 +17,27 @@ class Sprite(pygame.sprite.Sprite):
     def move(self):
         keys = pygame.key.get_pressed()
 
+        speed = 6
         if keys[pygame.K_LEFT]:
-            playerCar.moveLeft(10)
+            playerCar.moveLeft(speed)
         if keys[pygame.K_RIGHT]:
-            playerCar.moveRight(10)
+            playerCar.moveRight(speed)
         if keys[pygame.K_DOWN]:
-            playerCar.moveForward(10)
+            playerCar.moveForward(speed)
         if keys[pygame.K_UP]:
-            playerCar.moveBack(10)
+            playerCar.moveBack(speed)
 
-    def moveRight(self, pixels):
-        self.rect.x += pixels
+#    def moveRight(self, pixels):
+#        self.rect.x += pixels
+#
+#    def moveLeft(self, pixels):
+#        self.rect.x -= pixels
+    
+    def moveRight(self, speed):
+        self.rect.x += int(speed * speed/10)
 
-    def moveLeft(self, pixels):
-        self.rect.x -= pixels
+    def moveLeft(self, speed):
+        self.rect.x -= int(speed * speed/10)
 
     def moveForward(self, speed):
         self.rect.y += int(speed * speed/10)

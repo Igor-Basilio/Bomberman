@@ -203,9 +203,15 @@ def drawBoundingWalls(background):
         Physics.Walls.append(background.blit(topBrickWall, 
                         (i,SCREEN_HEIGHT - TILESIZE * TILES_SCALE_FACTOR)))
 
-def drawBoxes(background):
-    box_rect = pygame.Rect(5 * TILESIZE * TILES_SCALE_FACTOR,
-                       5 * TILESIZE * TILES_SCALE_FACTOR,
+def drawInsideWalls(background):
+    for i in range(2*TILESIZE * TILES_SCALE_FACTOR, SCREEN_WIDTH - 2*TILESIZE * TILES_SCALE_FACTOR, 2*TILESIZE * TILES_SCALE_FACTOR):
+        for j in range(3*TILESIZE * TILES_SCALE_FACTOR, SCREEN_HEIGHT- 2*TILESIZE * TILES_SCALE_FACTOR, 2*TILESIZE * TILES_SCALE_FACTOR):
+            Physics.Walls.append(background.blit(topBrickWall, (i, j)))
+
+# def drawBoxes(background,):
+def drawBoxes(background, x, y):
+    box_rect = pygame.Rect(x * TILESIZE * TILES_SCALE_FACTOR,
+                       y * TILESIZE * TILES_SCALE_FACTOR,
                        TILESIZE * TILES_SCALE_FACTOR, TILESIZE * TILES_SCALE_FACTOR)
 
     background_subsurface = background.subsurface(box_rect).copy()
@@ -221,7 +227,9 @@ def drawBackground():
             background.blit(grassTile, (j, i))
 
     drawBoundingWalls(background)
-    drawBoxes(background)
+    drawInsideWalls(background)
+    drawBoxes(background, 3, 4)
+    drawBoxes(background, 5, 6)
     background = background.convert()
     return background
 

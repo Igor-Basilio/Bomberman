@@ -1,7 +1,8 @@
 # Bomberman
 
 # Rodar cliente :
-- source venv/bin/activate
+- windows: .venv\Scripts\activate
+- linux: source venv/bin/activate
 - pip install -r requirements.txt
 - python Client.py
 

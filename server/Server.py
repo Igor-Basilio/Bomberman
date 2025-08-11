@@ -9,6 +9,9 @@ state2 = (100, 100)
 clients = []  # List of all active client sockets
 clients_lock = threading.Lock()
 
+connectedPlayers     = [ [False, -1, 1], [False, -1, 2], [False, -1, 3],
+                         [False, -1, 4] ] 
+
 players = {}
 
 def resendPlayers():
@@ -16,6 +19,28 @@ def resendPlayers():
 
 def valueChanged():
     pass
+
+def getPosition(ID):
+    for i in range(4):
+        player = connectedPlayers[i]
+        if(player[1] == ID):
+            return player[2]
+
+def addPlayer(ID):
+    for i in range(4):
+        player = connectedPlayers[i]
+        if(player[1] == -1):
+            player[0] = True
+            player[1] = ID
+            break
+
+def removePlayer(ID):
+    for i in range(4):
+        player = connectedPlayers[i]
+        if(player[1] == ID):
+            player[0] = False
+            player[1] = -1
+            break
 
 recv_buffer = b""
 
@@ -32,21 +57,30 @@ def parseProtocolMSG(self, msg):
                         client.sendall(struct.pack('>I',
                                 len(packed_data)) + packed_data)
                     except:
-                        pass 
+                        pass
+
+    elif msg.startswith(b'LOBBY DATA'):
+        global connectedPlayers
+
+        packed = b'LOBBY DATA'
+        for p in connectedPlayers:
+            packed += struct.pack('>?iH', p[0], p[1], p[2])
+        self.request.sendall(struct.pack('>I', len(packed)) + packed)
 
     elif msg.startswith(b'PLAYER JOINED'):
         global players
 
-
         R, G, B, height, width, x, y, ID = struct.unpack('>3B2H2iH', 
                                                          msg[13:])
 
-        self._color = (R, G, B)
+        addPlayer(ID)
+
+        self._color  = (R, G, B)
         self._height = height
-        self._width = width
+        self._width  = width
 
         pos = (0, 0)
-        match len(clients):
+        match getPosition(ID):
             case 1:
                 pos = (50, 50)
             case 2:
@@ -60,7 +94,7 @@ def parseProtocolMSG(self, msg):
                 return
 
         self._pos = pos
-        self._ID = ID
+        self._ID  = ID
 
         self._playerData = struct.pack('>3B2H2iH', R, G, B, height, width,
                                        pos[0], pos[1], ID)
@@ -70,7 +104,7 @@ def parseProtocolMSG(self, msg):
 
         players[self._ID] = self._playerData
 
-        data = b'PLAYER JOINED' + struct.pack('>H', len(players))
+        data = b'PLAYER JOINED' + struct.pack('>IH', ID, len(players))
 
         for player in players.values():
             data += player
@@ -78,13 +112,15 @@ def parseProtocolMSG(self, msg):
         with clients_lock:
             for client in clients:
                     try:
-                        client.sendall(struct.pack('>I', len(data)) 
-                                       + data)
+                        packed = struct.pack('>I', len(data)) + data
+                        client.sendall(packed)
                     except:
                         pass
 
+        
+
     elif msg.startswith(b'CHANGEX'):
-        ID, newX = struct.unpack('>Hi', msg[7:13]) 
+        ID, newX = struct.unpack('>Hi', msg[7:13])
 
         #R, G, B, height, width, x, y, playerID = struct.unpack('>3B2H2iH', 
         #                                                 players[ID])
@@ -103,13 +139,13 @@ def parseProtocolMSG(self, msg):
         with clients_lock:
             for client in clients:
                     try:
-                        client.sendall(struct.pack('>I', len(packedData)) 
+                        client.sendall(struct.pack('>I', len(packedData))
                                        + packedData)
                     except:
                         pass
 
     elif msg.startswith(b'CHANGEY'):
-        ID, newY = struct.unpack('>Hi', msg[7:13]) 
+        ID, newY = struct.unpack('>Hi', msg[7:13])
 
         #R, G, B, height, width, x, y, playerID = struct.unpack('>3B2H2iH', 
         #                                                 players[ID])
@@ -158,6 +194,7 @@ def parseProtocolMSG(self, msg):
                                        + packedData)
                     except:
                         pass
+
     elif msg.startswith(b'BOMB PLACED'):
         lenMsg = struct.pack('>I', len(msg))
         with clients_lock:
@@ -191,7 +228,6 @@ class RequestHandler(socketserver.BaseRequestHandler):
         
         with clients_lock:
             clients.append(self.request)
-        self.request.settimeout(3.0)
 
     def handle(self):
         global state2, recv_buffer
@@ -229,6 +265,7 @@ class RequestHandler(socketserver.BaseRequestHandler):
                 clients.remove(self.request)
 
         if hasattr(self, '_ID') and self._ID in players:
+            removePlayer(self._ID)
             del players[self._ID]
             packed = b'PLAYER DISC' + struct.pack('>H', self._ID)
 

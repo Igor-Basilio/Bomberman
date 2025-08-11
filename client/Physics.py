@@ -31,7 +31,7 @@ def collisionDetection(oldPos):
        with players_lock:
            Player.playerCar.rect = oldPos.copy()
 
-oldPos = 0
+oldPos = None
 Walls = []
 BoxesRects = []
 BoxesSurfaces = []

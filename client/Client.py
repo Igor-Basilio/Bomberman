@@ -18,12 +18,21 @@ import Globals
 import Player
 from Bomb import *
 
-# Heartbeat to disconnect players
+def connectToServer():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((Globals.SERVER_IP, 5000))
+    return sock
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('localhost', 5000))
+def disconnectFromServer(sock):
+    try:
+        if sock:
+            sock.shutdown(socket.SHUT_RDWR)
+            sock.close()
+    except Exception as e:
+        print("Error while disconnecting:", e)
+    return
 
-def checkNumClients():
+def checkNumClients(sock):
     connStr = sock.recv(2)
     if connStr.decode() == 'NO':
         print('Limite de jogadores alcançado (4).')
@@ -31,24 +40,10 @@ def checkNumClients():
         pygame.quit()
         exit()
 
-player_joined_event = Event()
-player_updated_event = Event()
-
-#lenState = sock.recv(4)
-#state = sock.sendall(struct.pack('>I', len('STATE')) + b'STATE') or sock.recv(7)
-#state_color = tuple(state)
-#print(state_color)
-#sock.sendall(struct.pack('>I', len('STATE2')) + b'STATE2')
-#
-#lenState2 = sock.recv(4)
-#state2 = struct.unpack('>HH', sock.recv(4))
-#print(state2)
-#rect_position = list(state2)
-
 state_color = (0, 0, 255)
 rect_position = (100, 100)
 
-pygame.display.set_caption("Game")
+pygame.display.set_caption("Bomberman")
 
 # TODO: make server generate ID 
 # and look for duplicates 
@@ -56,7 +51,7 @@ ID = np.random.choice(range(30000))
 
 playerDict = {}
 
-def updateState2():
+def updateState2(sock):
     global rect_position
     pos = pygame.mouse.get_pos()
     rect_position = list(pos)
@@ -69,6 +64,17 @@ def parseProtocolMSG(msg):
     if msg.startswith(b'NEWP'):
         with rect_position_lock:
             rect_position = list(struct.unpack('>HH', msg[4:]))
+
+    elif msg.startswith(b'LOBBY DATA'):
+
+        end = 17
+        start = 10
+        for p in Globals.connectedPlayers:
+            B, cID, N = struct.unpack('>?iH', msg[start:end])
+            p[0] = B
+            p[1] = cID
+            start += 7
+            end += 7
 
     elif msg.startswith(b'PLAYER UPDATED'):
 
@@ -88,19 +94,22 @@ def parseProtocolMSG(msg):
 
         global ID
 
-        playersConnected = struct.unpack('>H', msg[13:15])[0]
+        playerJoinedID, playersConnected = struct.unpack('>IH', msg[13:19])
+
+        with players_lock:
+            Globals.addPlayer(playerJoinedID)
 
         for i in range(playersConnected):
 
             # 17 Bytes { (R, G, B), 2 shorts, 2 ints and 1 more short }
             R, G, B, height, width, x, y, incomingID = list(struct.
                                              unpack_from('>3B2H2iH',
-                                                     msg[15:], i * 17))
+                                                     msg[19:], i * 17))
 
             player = Player.Sprite((R, G, B), height, width)
             player.rect.x = x
             player.rect.y = y
-
+            
             with players_lock:
 
                 if incomingID not in playerDict:
@@ -112,9 +121,9 @@ def parseProtocolMSG(msg):
                     player_joined_event.set()
 
     elif msg.startswith(b'PLAYER DISC'):
-        # unpack always returns a tuple IMPORTANT TO REMEMBER
         disconnectedID = struct.unpack('>H', msg[11:])[0]
         with players_lock:
+            removePlayer(disconnectedID)
             del playerDict[disconnectedID]
 
     elif msg.startswith(b'TOO MANY CONNECTIONS'):
@@ -126,17 +135,23 @@ def parseProtocolMSG(msg):
         bomb = Bomb(posX, posY, time)
         bomb.animate()
 
-def recv_updates():
+def recv_updates(sock):
+
     recv_buffer = b""
 
     while True:
         try:
             data = sock.recv(2048)
 
+            #joinedLobby = e.wait()
+
             if not data:
                break
 
+            #print(f"Received raw data of length {len(data)}")
+
             recv_buffer += data
+
 
             while len(recv_buffer) >= 4:
                 msg_len = struct.unpack('>I', recv_buffer[:4])[0]
@@ -145,7 +160,7 @@ def recv_updates():
                 msg = recv_buffer[4:4 + msg_len]
                 recv_buffer = recv_buffer[4 + msg_len:]
                 parseProtocolMSG(msg)
-
+                
         except Exception as e:
             print(f"Error: {e}")
             break
@@ -154,14 +169,13 @@ def recv_updates():
 SURFACE_COLOR = (99, 99, 99)
 COLOR = (255, 100, 98)
 
-def quit():
-    global recv_thread
+def quit(sock, recv_thread):
     pygame.quit()
     recv_thread.join(timeout=0.1)
     sock.close()
     sys.exit()
 
-def playerJoined():
+def playerJoined(sock):
 
     # Endianess, int 4 bytes ( little endian, big endian )
     data = b'PLAYER JOINED' + struct.pack('>3B2H2iH', *Player.color, 20, 30,
@@ -169,7 +183,7 @@ def playerJoined():
                                       Player.playerCar.rect.y, ID)
 
     sock.sendall(struct.pack('>I', len(data)) + data)
-    player_joined_event.wait(timeout=0.1)
+    player_joined_event.wait()
     player_joined_event.clear()
 
 def drawBoundingWalls(background):
@@ -234,27 +248,22 @@ def drawBackground():
     background = background.convert()
     return background
 
-def sendBombPlaced(posX, posY, time):
+def sendBombPlaced(posX, posY, time, sock):
     packed = b'BOMB PLACED' + struct.pack('>2iI', posX, posY, time) 
     sock.sendall(struct.pack('>I', len(packed)) + packed)
 
-if __name__ == "__main__":
-    
-    checkNumClients()
-    Globals.background = drawBackground()
-    recv_thread = threading.Thread(target=recv_updates, daemon=True)
-    recv_thread.start()
-    playerJoined()
-    debug = False
-    
-    while True:
-        Player.clock.tick(FPS)
+debug = False
 
-        for event in pygame.event.get():
+def drawGame(events, sock, recv_thread):
+
+    if Player.playerCar is None:
+        print("ERROR: Player not initialized before entering game")
+
+    for event in events:
             if event.type == QUIT:
-                quit()
+                quit(sock, recv_thread)
             elif event.type == pygame.MOUSEBUTTONUP:
-                updateState2()
+                updateState2(sock)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
 
@@ -266,23 +275,27 @@ if __name__ == "__main__":
                        collidingWithLastPlacedBomb is None) and \
                        Globals.numberOfPlacedBombs < 2:
 
-                        time = 2
-                        bomb = Bomb(Player.playerCar.rect.x,
-                                    Player.playerCar.rect.y, time)
+                       time = 2
+                       bomb = Bomb(Player.playerCar.rect.x,
+                                   Player.playerCar.rect.y, time)
 
-                        Physics.justPlacedBomb = True
-                        Physics.lastPlacedBomb = bomb
+                       Physics.justPlacedBomb = True
+                       Physics.lastPlacedBomb = bomb
 
-                        bomb.animate()
-                        sendBombPlaced(Player.playerCar.rect.x,
-                                       Player.playerCar.rect.y, time)
+                       bomb.animate()
+                       sendBombPlaced(Player.playerCar.rect.x,
+                                      Player.playerCar.rect.y, time, sock)
+
                 if event.key == pygame.K_p:
+                    global debug
                     debug = not debug
 
         #DISPLAY.blit(sidewaysBrickWall, (0, 0))
         #DISPLAY.blit(goblin1FrameArray[1], (TILESIZE * SCALE_FACTOR, 0))
         
-        with players_lock:
+    with players_lock:
+        if Physics.oldPos is not None and (Physics.oldPos[0] != Player.playerCar.rect.x or Physics.oldPos[1] != Player.playerCar.rect.y):
+
             data = b'CHANGEPOS' + struct.pack('>H2i',  ID, Player.playerCar.rect.x,
                                             Player.playerCar.rect.y)
 
@@ -291,42 +304,59 @@ if __name__ == "__main__":
             #player_updated_event.clear()
 
 
-        DISPLAY.blit(Globals.background, (0, 0))
-        bombsGroup.draw(DISPLAY)
-        bombsGroup.update()
+    DISPLAY.blit(Globals.background, (0, 0))
+    bombsGroup.draw(DISPLAY)
+    bombsGroup.update()
 
-        explosionGroup.draw(DISPLAY)
-        explosionGroup.update()
-        
+    explosionGroup.draw(DISPLAY)
+    explosionGroup.update()
+    
+    #with rect_position_lock:
+    #    pygame.draw.rect(DISPLAY, state_color,
+    #                     (*rect_position, 50, 50))
 
-        #with rect_position_lock:
-        #    pygame.draw.rect(DISPLAY, state_color,
-        #                     (*rect_position, 50, 50))
+    collided = pygame.sprite.spritecollideany(Player.playerCar, bombsGroup,
+                                              collided=None)
 
-        collided = pygame.sprite.spritecollideany(Player.playerCar, bombsGroup,
-                                                  collided=None)
+    indexofCollidedWall = Player.playerCar.rect.collidelist(Physics.Walls)
+    indexofCollidedBox  = Player.playerCar.rect.collidelist(Physics.BoxesRects)
 
-        indexofCollidedWall = Player.playerCar.rect.collidelist(Physics.Walls)
-        indexofCollidedBox  = Player.playerCar.rect.collidelist(Physics.BoxesRects)
+    if collided is None and indexofCollidedWall == -1 and indexofCollidedBox == -1:
+        Physics.oldPos = Player.playerCar.rect.copy()
+        Physics.justPlacedBomb = False
+        Physics.lastPlacedBomb = None
 
-        if collided is None and indexofCollidedWall == -1 and indexofCollidedBox == -1:
-            Physics.oldPos = Player.playerCar.rect.copy()
-            Physics.justPlacedBomb = False
-            Physics.lastPlacedBomb = None
+    with players_lock:
+        Player.playerCar.move()
+        for p in playerDict.values():
+            DISPLAY.blit(p.image, (p.rect.x - TILESIZE / 2,
+                                   p.rect.y - TILESIZE))
 
-        with players_lock:
-            Player.playerCar.move()
-            for p in playerDict.values():
-                DISPLAY.blit(p.image, (p.rect.x - TILESIZE / 2,
-                                       p.rect.y - TILESIZE))
+            if debug:
+                pygame.draw.rect(DISPLAY, (0, 255, 0),
+                                 (p.rect.x,
+                                  p.rect.y, p.rect.width,
+                                  p.rect.height), 3)
 
-                if debug:
-                    pygame.draw.rect(DISPLAY, (0, 255, 0),
-                                     (p.rect.x,
-                                      p.rect.y, p.rect.width,
-                                      p.rect.height), 3)
-
+    if isinstance(Physics.oldPos, pygame.Rect):
         Physics.collisionDetection(Physics.oldPos)
+    else:
+        print("Warning: Physics.oldPos not initialized")
 
-        pygame.display.update()
+#if __name__ == "__main__":
+#   
+#   thisClientSocket = connectToServer()
+#   checkNumClients(thisClientSocket)
+#   Globals.background = drawBackground()
+#   recv_thread = threading.Thread(target=recv_updates, args=(thisClientSocket,),
+#                                  daemon=True)
+#   recv_thread.start()
+#   playerJoined(thisClientSocket)
+#   debug = False
+#   
+#   while True:
+#       Player.clock.tick(FPS)
+#       events = pygame.event.get()
+#       drawGame(events, thisClientSocket, recv_thread)
+#       pygame.display.update()
 
